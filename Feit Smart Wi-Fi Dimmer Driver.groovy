@@ -56,9 +56,9 @@ def processResponse(def response) {
     //Is light on?  DPS 1
     Logging ( status_object.dps["1"])
     if (status_object.dps["1"] == true) {
-        sendEvent(name: "switch", value : "On", isStateChange : true)
+        sendEvent(name: "switch", value : "on", isStateChange : true)
     } else {
-        sendEvent(name: "switch", value : "Off", isStateChange : true)
+        sendEvent(name: "switch", value : "off", isStateChange : true)
     }
     
     //Device level DPS 2
@@ -264,7 +264,7 @@ def on() {
     //turn on the light
     Logging ("Sending ON message")
     sendSetMessage([1:true])
-    sendEvent(name: "switch", value : "On", isStateChange : true)
+    sendEvent(name: "switch", value : "on", isStateChange : true)
     
 }
 
@@ -273,7 +273,7 @@ def off() {
     //turn off the light
     Logging ("Sending OFF message") 
     sendSetMessage([1:false])
-    sendEvent(name: "switch", value : "Off", isStateChange : true)
+    sendEvent(name: "switch", value : "off", isStateChange : true)
      
     
 }
@@ -287,8 +287,8 @@ def setLevel(int level, transition = null) {
 	if (level > 1000) { level = 1000 } 
     
     sendSetMessage([1:true, 2:level]) 
-	sendEvent(name: "level", value : level/10, isStateChange : true)
-    sendEvent(name: "switch", value : "On", isStateChange : true)
+    sendEvent(name: "level", value : level/10, isStateChange : true)
+    sendEvent(name: "switch", value : "on", isStateChange : true)
 }
 
 //ask the device status
