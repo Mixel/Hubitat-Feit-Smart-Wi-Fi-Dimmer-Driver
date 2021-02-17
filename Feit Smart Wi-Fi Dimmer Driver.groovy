@@ -31,6 +31,7 @@ preferences {
 		input "devId", "text", title: "Device ID:", required: false
 		input "localKey", "text", title: "Device local key:", required: false
         input name: "logging", type: "bool", title: "Enable debug logging", defaultValue: true
+        input ("refresh_Rate", "enum", title: "Device Refresh Interval (minutes)",  options: ["1", "5", "10", "15", "30", "60", "180"], defaultValue: "60")
         
 	}
 }
@@ -40,10 +41,25 @@ def logsOff() {
 	device.updateSetting("logging", [value: "false", type: "bool"])
 }
 
+def installed() {
+	Logging("Installing Feit Dimer Device....")
+	runIn(2, updated)
+}
+
 def updated() {
-    
 	log.info "updated..."
 	log.warn "debug logging is: ${logging == true}"
+    unschedule()
+    switch(refresh_Rate) {
+		case "1" : runEvery1Minute(status); break
+		case "5" : runEvery5Minutes(status); break
+		case "10" : runEvery10Minutes(status); break
+		case "15" : runEvery15Minutes(status); break
+		case "30" : runEvery30Minutes(status); break
+		case "180": runEvery3Hours(status); break
+		default:
+			runEvery1Hour(refresh); break
+	}
 	sendEvent(name: "switch", value: "off")
     
 }
@@ -54,7 +70,6 @@ def processResponse(def response) {
     def status_object = jsonSlurper.parseText(response)
     
     //Is light on?  DPS 1
-    Logging ( status_object.dps["1"])
     if (status_object.dps["1"] == true) {
         sendEvent(name: "switch", value : "on", isStateChange : true)
     } else {
@@ -68,18 +83,20 @@ def processResponse(def response) {
 }
 
 def parse(String input) {
-    
 	Logging ("Entering parsing...")
-	Logging ("$input")
+	//Logging ("$input")
     
     //convert to byteAray and drop the control bytes (unless you really wanna validate the message...)
 	byte[] msg_byte = hubitat.helper.HexUtils.hexStringToByteArray(input) 
     msg_byte = msg_byte[20..-9] 
     
 	String status = new String(msg_byte )
-   
+    //We handle the encrypted versions
+    //Logging ("$status")
     //Decrypt without Base64
-    status = decrypt(msg_byte, settings.localKey, false)     
+    status = decrypt(msg_byte, settings.localKey, false)
+
+     
     processResponse(status)
     
 	try {
@@ -168,20 +185,12 @@ def CRC32b(bytes, length) {
 	return ~crc
 }
 
-/*
-def optionalSet(name, value){
-   if (json_data.containsKey("gwId")) {
-		json_data["gwId"] = settings.devId
-	} 
-}
-*/
 
 def generate_payload(command, data=null) {
 
 	json_data = payload()["device"][command]["command"]
-
-    //
 	if (json_data.containsKey("gwId")) json_data["gwId"] = settings.devId
+    
     //all the commands use those 2
     json_data["devId"] = settings.devId
     json_data["uid"] = settings.devId
@@ -243,7 +252,7 @@ def sendMessage(def msg){
     interfaces.rawSocket.sendMessage(msg)
     
     //debug
-    Logging (msg)
+    //Logging (msg)
 }
 
 
@@ -263,8 +272,7 @@ def on() {
     
     //turn on the light
     Logging ("Sending ON message")
-    sendSetMessage([1:true])
-    sendEvent(name: "switch", value : "on", isStateChange : true)
+    sendSetMessage(["1":true])
     
 }
 
@@ -272,8 +280,7 @@ def off() {
     
     //turn off the light
     Logging ("Sending OFF message") 
-    sendSetMessage([1:false])
-    sendEvent(name: "switch", value : "off", isStateChange : true)
+    sendSetMessage(["1":false])
      
     
 }
@@ -287,8 +294,7 @@ def setLevel(int level, transition = null) {
 	if (level > 1000) { level = 1000 } 
     
     sendSetMessage([1:true, 2:level]) 
-    sendEvent(name: "level", value : level/10, isStateChange : true)
-    sendEvent(name: "switch", value : "on", isStateChange : true)
+	
 }
 
 //ask the device status
